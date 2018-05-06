@@ -1,13 +1,13 @@
 package com.sum.aaron.map
 
 import android.Manifest
-import android.annotation.SuppressLint
 import android.app.Application
 import android.arch.lifecycle.AndroidViewModel
 import android.arch.lifecycle.LiveData
 import android.arch.lifecycle.MutableLiveData
 import android.content.Context
-import android.support.annotation.RequiresPermission
+import android.content.pm.PackageManager
+import android.support.v4.content.ContextCompat
 import android.util.Log
 import com.google.android.gms.location.*
 import com.google.android.gms.maps.model.LatLng
@@ -25,8 +25,8 @@ class LocationViewModel(application: Application) : AndroidViewModel(application
 
     private fun createLocationRequest() {
         locationRequest = LocationRequest().apply {
-            interval = 10000
-            fastestInterval = 5000
+            interval = 600000
+            fastestInterval = 30000
             priority = LocationRequest.PRIORITY_BALANCED_POWER_ACCURACY
         }
     }
@@ -45,19 +45,20 @@ class LocationViewModel(application: Application) : AndroidViewModel(application
                 locationResult?.let { locationResult ->
                     val lastIndex = locationResult.locations.lastIndex
                     val location = locationResult.locations[lastIndex]
-                    Log.d("TAG", "${location.latitude}, ${location.longitude}")
+                    Log.d("TAG", "current location in view model ${location.latitude}, ${location.longitude}")
                     currentLocation as MutableLiveData
                     currentLocation.postValue(LatLng(location.latitude, location.longitude))
+                    Log.d("TAG", "current location in live data ${currentLocation.value}")
                 }
             }
         }
     }
 
-    @RequiresPermission(Manifest.permission.ACCESS_FINE_LOCATION)
-    @SuppressLint("MissingPermission")
-    fun subscribeToLocationUpdate() {
+    fun subscribeToLocationUpdate(context: Context) {
         getLocationCallBack()
-        locationClient.requestLocationUpdates(locationRequest, locationCallBack, null)
+        if (ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+            locationClient.requestLocationUpdates(locationRequest, locationCallBack, null)
+        }
     }
 
     fun unsubscribeLocationUpdate() {

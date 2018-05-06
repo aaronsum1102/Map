@@ -1,15 +1,12 @@
 package com.sum.aaron.map
 
 import android.Manifest
-import android.annotation.SuppressLint
 import android.app.Activity
 import android.app.AlertDialog
 import android.arch.lifecycle.Observer
 import android.arch.lifecycle.ViewModelProviders
-import android.content.IntentSender
 import android.content.pm.PackageManager
 import android.os.Bundle
-import android.support.annotation.RequiresPermission
 import android.support.v4.app.ActivityCompat
 import android.support.v4.app.Fragment
 import android.support.v4.content.ContextCompat
@@ -17,7 +14,7 @@ import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import com.google.android.gms.common.api.ResolvableApiException
+import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.GoogleMap
 import com.google.android.gms.maps.OnMapReadyCallback
 import com.google.android.gms.maps.model.LatLng
@@ -26,7 +23,8 @@ import kotlinx.android.synthetic.main.fragment_map.*
 class MapFragment : Fragment(), OnMapReadyCallback {
     companion object {
         private const val GPS_REQUEST_CODE = 100
-        private const val USER_SETTING_REQUEST_CODE = 10
+        private const val DEFAULT_ZOOM_LEVEL = 13.5f
+        private val DEFAULT_POSITION = LatLng(59.3260668,17.8419729)
     }
 
     private lateinit var map: GoogleMap
@@ -37,36 +35,12 @@ class MapFragment : Fragment(), OnMapReadyCallback {
         return inflater.inflate(R.layout.fragment_map, container, false)
     }
 
-    @RequiresPermission(Manifest.permission.ACCESS_FINE_LOCATION)
-    @SuppressLint("MissingPermission")
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         mapView.onCreate(savedInstanceState)
 
         mapView.getMapAsync(this)
-        locationViewModel = ViewModelProviders.of(this)[LocationViewModel::class.java]
 
-        this.context?.let { context ->
-            locationViewModel.getFusedLocationClient(context)
-            val task = locationViewModel.checkUserLocationSetting(context)
-            task.apply {
-                addOnSuccessListener {
-                    locationViewModel.subscribeToLocationUpdate()
-                }
-                addOnFailureListener { exception ->
-                    if (exception is ResolvableApiException) {
-                        try {
-                            exception.startResolutionForResult(this@MapFragment.activity,
-                                    USER_SETTING_REQUEST_CODE)
-                        } catch (sendEx: IntentSender.SendIntentException) {
-                            Log.d("TAG", "${sendEx.message}")
-                        }
-                    } else {
-                        Log.d("TAG", "${exception.message}")
-                    }
-                }
-            }
-        }
-
+        locationViewModel = ViewModelProviders.of(activity!!)[LocationViewModel::class.java]
         locationViewModel.currentLocation.observe(this, Observer { position ->
             currentLocation = position
             Log.d("TAG", "current location in fragment $currentLocation")
@@ -77,6 +51,11 @@ class MapFragment : Fragment(), OnMapReadyCallback {
     override fun onMapReady(googleMap: GoogleMap?) {
         map = googleMap ?: return
         enableUserLocation()
+        if (currentLocation != null) {
+            map.moveCamera(CameraUpdateFactory.newLatLngZoom(currentLocation, DEFAULT_ZOOM_LEVEL))
+        } else {
+            map.moveCamera(CameraUpdateFactory.newLatLngZoom(DEFAULT_POSITION, DEFAULT_ZOOM_LEVEL))
+        }
     }
 
     override fun onStart() {
